@@ -1,42 +1,41 @@
 import React from "react";
 
-function Cell({ value, letter, isSpecial, isSelected, isRevealed, onClick, onChange, number, isHighlighted }) {
-  if (!value) {
-    return <div className="w-12 h-12 bg-gray-200 border border-gray-300" />;
-  }
-
-  const handleChange = (e) => {
-    const input = e.target.value.toUpperCase();
-    if (/^[A-Z]?$/.test(input)) {
-      onChange(input);
+function Cell({ value, letter, isSelected, onClick, onChange, number, isHighlighted, isWordStart, row, col }) {
+  const handleKeyDown = (e) => {
+    if (/^[a-zA-Z]$/.test(e.key)) {
+      onChange(e.key);
+      e.preventDefault();
     }
   };
 
   return (
     <div
-      onClick={onClick}
       className={`
-        relative w-12 h-12 border border-gray-300 flex items-center justify-center cursor-pointer
-        transition-colors duration-200
-        ${isSelected ? "bg-yellow-100" : "bg-blue-100 hover:bg-blue-400"}
-        ${isHighlighted ? "bg-yellow-200" : ""}
-        ${isSpecial && !isRevealed ? "bg-blue-800 hover:bg-yellow-300" : ""}
+        w-[25px] h-[25px] flex items-center justify-center relative
+        ${value ? 'bg-white border-2 border-gray-900' : 'bg-white'}
+        ${isSelected ? 'ring-2 ring-blue-500' : ''}
+        ${isHighlighted ? 'bg-yellow-200' : ''}
+        ${value ? 'cursor-pointer' : ''}
       `}
+      onClick={onClick}
+      data-row={row}
+      data-col={col}
     >
-      {number && (
-        <div className="absolute top-0 left-1 text-xs text-gray-600 font-bold">{number}</div>
+      {isWordStart && number && (
+        <span className="absolute top-0 left-0.5 text-[8px] font-bold">{number}</span>
       )}
-      <input
-        type="text"
-        maxLength="1"
-        value={letter || ""}
-        onChange={handleChange}
-        className={`
-          w-full h-full text-center text-xl font-semibold uppercase
-          focus:outline-none bg-transparent caret-transparent
-          ${isSpecial && !isRevealed ? "text-transparent" : "text-gray-900"}
-        `}
-      />
+      {value === 1 && (
+        <input
+          type="text"
+          maxLength={1}
+          value={letter || ''}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          className="w-full h-full text-center uppercase font-bold bg-transparent outline-none text-sm"
+          data-row={row}
+          data-col={col}
+        />
+      )}
     </div>
   );
 }

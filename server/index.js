@@ -2,8 +2,11 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import User from './models/User.js';
 import Puzzle from './models/Puzzle.js';
 import UserAttempt from './models/UserAttempt.js';
+import { userTokenCheck } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -16,6 +19,63 @@ app.use(express.json());
 mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
+
+// Login route - before protected routes
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { techziteId, name, contact, email, password } = req.body;
+
+    // Check for fixed password
+    if (password !== '1234') {
+      return res.status(401).json({ message: 'Invalid password' });
+    }
+
+    // Find or create user
+    let user = await User.findOrCreateUser({ techziteId, name, contact, email });
+
+    // Check if the user has already attempted the puzzle
+    const existingAttempt = await UserAttempt.findOne({ userId: user._id });
+    if (existingAttempt) {
+      return res.status(403).json({ message: 'You have already attempted the puzzle.' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // Return user data and token
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        techziteId: user.techziteId,
+        name: user.name,
+        contact: user.contact,
+        email: user.email // Add email field
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Error during login', error: error.message });
+  }
+});
+
+// Verify token route
+app.get('/api/auth/verify', userTokenCheck, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select('-attempts');
+    res.json({ user });
+  } catch (error) {
+    res.status(401).json({ message: 'Token verification failed' });
+  }
+});
+
+// Apply authentication middleware to protected routes
+app.use('/api/puzzles', userTokenCheck);
+app.use('/api/attempts', userTokenCheck);
 
 // Create new puzzle
 app.post('/api/puzzles', async (req, res) => {
@@ -36,6 +96,11 @@ app.post('/api/puzzles', async (req, res) => {
       }
     }
 
+    // Add wordLength to each word
+    words.forEach(word => {
+      word.wordLength = word.word.length;
+    });
+
     const puzzle = new Puzzle({
       size,
       grid,
@@ -48,46 +113,30 @@ app.post('/api/puzzles', async (req, res) => {
   }
 });
 
-// Get puzzle by ID
-app.get('/api/puzzles/:id', async (req, res) => {
+
+app.get('/api/puzzles/', async (req, res) => {
   try {
-    const puzzle = await Puzzle.findById(req.params.id);
-    if (!puzzle) return res.status(404).json({ message: 'Puzzle not found' });
-    res.json(puzzle);
+    const puzzles = await Puzzle.find({}, { "words.word": 0 });  // Exclude the 'word' field
+    if (puzzles.length === 0) {
+      return res.status(404).json({ message: 'No puzzles found' });  // Return 404 if no puzzles exist
+    }
+    res.json(puzzles);  // Return the puzzles in the response
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message });  // Handle server errors
   }
 });
 
-// Verify special cell answer
-app.post('/api/puzzles/:id/verify-special', async (req, res) => {
-  try {
-    const { cellRow, cellCol, answer } = req.body;
-    const puzzle = await Puzzle.findById(req.params.id);
-    
-    if (!puzzle) return res.status(404).json({ message: 'Puzzle not found' });
-    
-    const cell = puzzle.grid[cellRow][cellCol];
-    if (cell.answer.toLowerCase() === answer.toLowerCase()) {
-      res.json({ correct: true, letter: cell.letter });
-    } else {
-      res.json({ correct: false });
-    }
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 // Submit puzzle attempt
-app.post('/api/attempts', async (req, res) => {
+app.post('/api/attempts', userTokenCheck, async (req, res) => {
   try {
-    const { puzzleId, userGrid, completedSpecialCells } = req.body;
+    const { puzzleId, userGrid } = req.body;
+    const userId = req.user._id;
     const puzzle = await Puzzle.findById(puzzleId);
     
     if (!puzzle) return res.status(404).json({ message: 'Puzzle not found' });
     
     let score = 0;
-    // Calculate score based on correct words
     puzzle.words.forEach(word => {
       let isCorrect = true;
       for (let i = 0; i < word.word.length; i++) {
@@ -103,18 +152,14 @@ app.post('/api/attempts', async (req, res) => {
 
     const attempt = new UserAttempt({
       puzzleId,
+      userId,
       userGrid,
-      score,
-      totalPossibleScore: puzzle.words.length,
-      completedSpecialCells
-    });
-    
-    await attempt.save();
-    res.status(201).json({ 
-      attempt,
       score,
       totalPossibleScore: puzzle.words.length
     });
+    
+    await attempt.save();
+    res.status(201).json({ attempt });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
