@@ -21,9 +21,9 @@ function CrosswordGrid({
   };
 
   return (
-    <div className="grid grid-cols-1 gap-1 p-4 bg-gray-100 rounded-lg shadow-md">
+    <div className="grid grid-cols-1 gap-y-2 gap-x-1 p-4 bg-gray-100 rounded-lg shadow-md">
       {grid.map((row, rowIndex) => (
-        <div key={rowIndex} className="flex">
+        <div key={rowIndex} className="flex gap-x-1">
           {row.map((cell, colIndex) => (
             <Cell
               key={colIndex}

@@ -15,7 +15,6 @@ const puzzleSchema = new mongoose.Schema({
     direction: String, // 'across' or 'down'
     startRow: Number,
     startCol: Number,
-    length: { type: Number, required: true },
     number: Number,
     wordLength: { type: Number, required: true } // Add wordLength field
   }]

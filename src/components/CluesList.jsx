@@ -13,8 +13,8 @@ function CluesList({ words }) {
       <div className="mb-6">
         <h2 className="text-xl font-bold mb-3">Across</h2>
         {acrossClues.map((word) => (
-          <div key={word.number} className="text-gray-700 flex gap-2 items-center">
-            <span className="font-bold text-lg">{word.number}.</span>
+          <div key={word.number} className="text-gray-700 flex  gap-2 items-center">
+            <span className="font-bold text-lg ">{word.number}.</span>
             <span>{word.clue}</span>
             <span className="text-gray-500">({word.wordLength})</span>
           </div>

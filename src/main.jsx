@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import App from './App'; // Your Crossword App
 import Login from './components/Login';
+import Thanks from './components/Thanks';
 import './index.css';
 
 function RootComponent() {
@@ -45,7 +47,14 @@ function RootComponent() {
     return <div>Loading puzzle...</div>;
   }
 
-  return <App initialPuzzle={puzzle} />;
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<App initialPuzzle={puzzle} />} />
+        <Route path="/thanks" element={<Thanks />} />
+      </Routes>
+    </Router>
+  );
 }
 
 createRoot(document.getElementById('root')).render(<RootComponent />);
